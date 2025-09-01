@@ -20,6 +20,7 @@ load_dotenv()  # Load variables from .env
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
+CSRF_TRUSTED_ORIGINS= ["web-production-da636.up.railway.app"]
 
 
 # Quick-start development settings - unsuitable for production
@@ -63,6 +64,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # For serving static files in production
 ]
 
 ROOT_URLCONF = 'backend.urls'
