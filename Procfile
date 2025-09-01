@@ -1,3 +1,2 @@
-web: gunicorn backend.wsgi --log-file - 
-#or works good with external database
-web: python manage.py migrate && gunicorn backend.wsgi
+release: python manage.py migrate && python create_superuser.py
+web: gunicorn backend.wsgi --log-file -
