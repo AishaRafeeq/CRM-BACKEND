@@ -23,6 +23,7 @@ ALLOWED_HOSTS = ["*"]  # For production, replace with your domains
 # CORS & CSRF settings
 INSTALLED_NETLIFY_FRONTENDS = [
     "https://kaleidoscopic-bunny-b8322e.netlify.app",  # Add other Netlify URLs if needed
+    "https://frabjous-seahorse-668c7b.netlify.app/",
 ]
 
 CORS_ALLOWED_ORIGINS = [
