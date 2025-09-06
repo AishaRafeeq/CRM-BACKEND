@@ -34,7 +34,11 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-_%5den6!#23&j0hagu8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'yes')
 
-ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+CORS_ALLOWED_ORIGINS = os.getenv(
+    'CORS_ALLOWED_ORIGINS', 
+    'http://localhost:5173,http://localhost:5174,https://teal-pothos-40b439.netlify.app'
+).split(',')
+
 
 
 # Application definition
@@ -94,10 +98,11 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 DATABASES = {
     "default": dj_database_url.config(
-        default=os.getenv("postgresql://postgres:iQxGAIFqGFYWkDfgTjMKhBMqaDfjYAXy@yamanote.proxy.rlwy.net:16364/railway"),
-        conn_max_age=600,  # keep connections alive for performance
+        default=os.getenv("DATABASE_URL"),
+        conn_max_age=600,
     )
 }
+
 
 
 # Password validation

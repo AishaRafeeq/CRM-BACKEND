@@ -4,6 +4,8 @@ from django.utils import timezone
 import uuid
 from django.utils.timezone import now
 import os
+import random
+import string
 
 
 
@@ -212,3 +214,91 @@ class SidebarItem(models.Model):
 
     class Meta:
         ordering = ['order']
+
+def generate_reference():
+    return str(uuid.uuid4().hex[:10]).upper()
+
+class FollowUp(models.Model):
+    SOURCE_CHOICES = [
+        ('whatsapp', 'WhatsApp'),
+        ('instagram', 'Instagram'),
+        ('facebook', 'Facebook'),
+        ('qatar_living', 'Qatar Living'),
+        ('other', 'Other'),
+    ]
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('contacted', 'Contacted'),
+        ('interested', 'Interested'),
+        ('not_interested', 'Not Interested'),
+        ('closed', 'Closed'),
+    ]
+
+    reference_number = models.CharField(max_length=12, unique=True, default=generate_reference)
+    client_name = models.CharField(max_length=100)
+    client_phone = models.CharField(max_length=20, blank=True, null=True)
+    client_address = models.TextField(blank=True, null=True)
+
+    car = models.ForeignKey(Car, on_delete=models.CASCADE, related_name='followups', null=False, default=1)
+    car_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    bargained_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='other')
+    notes = models.TextField(blank=True, null=True)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    is_closed = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def close(self):
+        self.status = 'closed'
+        self.is_closed = True
+        self.save(update_fields=['status', 'is_closed', 'updated_at'])
+
+    def __str__(self):
+        return f"FollowUp {self.reference_number} - {self.client_name} ({self.source})"
+    
+
+    
+
+# 1️⃣ Define the upload path function first
+def on_demand_car_image_path(instance, filename):
+    return f'on_demand_cars/{instance.reference_number}/{filename}'
+
+# 2️⃣ Define the reference number generator
+def generate_on_demand_ref(make='CAR'):
+    """
+    Generate 8-character reference: first 3 letters of make + 5 random digits
+    """
+    prefix = make[:3].upper() if make else 'CAR'
+    digits = ''.join(random.choices(string.digits, k=5))
+    return f"{prefix}{digits}"
+
+# 3️⃣ Then define your model
+class OnDemandCar(models.Model):
+    reference_number = models.CharField(max_length=8, unique=True, editable=False)
+    make = models.CharField(max_length=100)
+    model = models.CharField(max_length=100)
+    year = models.PositiveIntegerField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    description = models.TextField(blank=True, null=True)
+    image = models.ImageField(upload_to=on_demand_car_image_path, blank=True, null=True)
+    is_sold = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # ✅ Free-text fields
+    broker_name = models.CharField(max_length=100, blank=True, null=True)
+    owner_name = models.CharField(max_length=100, blank=True, null=True)
+    owner_contact = models.CharField(max_length=20, blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        if not self.reference_number:
+            self.reference_number = generate_on_demand_ref(self.make)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"On-Demand: {self.make} {self.model} ({self.reference_number})"

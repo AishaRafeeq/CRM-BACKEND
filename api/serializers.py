@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Broker, Car, ClientRequest, Agreement, ProcessedSale, SoldCar, 
-    TransactionHistory, SidebarSection, SidebarItem, ViewingRequest
+    TransactionHistory, SidebarSection, SidebarItem, ViewingRequest,FollowUp,OnDemandCar
 )
 from django.utils import timezone
 from datetime import datetime
@@ -307,3 +307,36 @@ class SoldCarDetailSerializer(serializers.ModelSerializer):
         model = SoldCar
         fields = '__all__'
 
+
+class FollowUpSerializer(serializers.ModelSerializer):
+    car_details = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FollowUp
+        fields = [
+            'id', 'reference_number', 'client_name', 'client_phone',
+            'car', 'car_details', 'notes', 'source', 'status', 'is_closed', 'created_at', 'updated_at'
+        ]
+
+    def get_car_details(self, obj):
+        car = obj.car
+        if not car:
+            return None
+        return {
+            'id': car.id,
+            'reference_number': car.reference_number,
+            'make': car.make,
+            'model': car.model,
+            'year': car.year,
+            'is_sold': car.is_sold,
+        }
+class OnDemandCarSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(use_url=True)
+
+    class Meta:
+        model = OnDemandCar
+        fields = [
+            'id', 'reference_number', 'make', 'model', 'year', 'price',
+            'description', 'image', 'is_sold', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['reference_number', 'created_at', 'updated_at']

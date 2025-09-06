@@ -1,12 +1,12 @@
 from .models import (
     Broker, Car, ClientRequest, Agreement,
-    ProcessedSale, SoldCar, TransactionHistory,SidebarSection,SidebarItem,ViewingRequest,
+    ProcessedSale, SoldCar, TransactionHistory,SidebarSection,SidebarItem,ViewingRequest,FollowUp,OnDemandCar
 )
 from .serializers import (
     BrokerSerializer, CarSerializer, ClientRequestSerializer,
     AgreementSerializer, ProcessedSaleSerializer,
     SoldCarSerializer, TransactionHistorySerializer, SidebarSectionSerializer,
-    ViewingRequestSerializer, ViewingRequestDetailSerializer, ViewingRequestSummarySerializer,
+    ViewingRequestSerializer, ViewingRequestDetailSerializer, ViewingRequestSummarySerializer,FollowUpSerializer,OnDemandCarSerializer
 )
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
@@ -43,14 +43,9 @@ class CarViewSet(viewsets.ModelViewSet):
         # Only return cars that are not sold
         return Car.objects.filter(is_sold=False)
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], url_path='available')
     def available(self, request):
-        """Get only available cars (not sold)"""
-        available_cars = self.get_queryset().filter(is_sold=False)
-        page = self.paginate_queryset(available_cars)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+        available_cars = Car.objects.filter(is_sold=False)
         serializer = self.get_serializer(available_cars, many=True)
         return Response(serializer.data)
 
@@ -490,4 +485,74 @@ class SalesAnalyticsView(APIView):
         serializer = SalesAnalyticsSerializer(payload)
         return Response(serializer.data)
 
+class FollowUpViewSet(viewsets.ModelViewSet):
+    queryset = FollowUp.objects.select_related('car').all().order_by('-created_at')
+    serializer_class = FollowUpSerializer
+    permission_classes = [AllowAny]  # <-- Remove authentication requirement
 
+    search_fields = ['reference_number', 'client_name', 'client_phone', 'source']
+    filterset_fields = ['status', 'source', 'car', 'is_closed', 'created_at']
+    ordering_fields = ['created_at', 'updated_at']
+    ordering = ['-created_at']
+
+    @action(detail=True, methods=['post'])
+    def mark_pending(self, request, pk=None):
+      followup = self.get_object()
+      followup.status = 'pending'
+      followup.save(update_fields=['status', 'updated_at'])
+      return Response({'status': followup.status}, status=status.HTTP_200_OK)
+
+
+
+    @action(detail=True, methods=['post'])
+    def mark_contacted(self, request, pk=None):
+        followup = self.get_object()
+        followup.status = 'contacted'
+        followup.save(update_fields=['status', 'updated_at'])
+        return Response({'status': followup.status}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def mark_interested(self, request, pk=None):
+        followup = self.get_object()
+        followup.status = 'interested'
+        followup.save(update_fields=['status', 'updated_at'])
+        return Response({'status': followup.status}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def schedule_viewing(self, request, pk=None):
+        followup = self.get_object()
+        if followup.status != 'interested':
+            return Response({'error': 'Viewing can only be scheduled if lead is interested'}, status=400)
+
+        viewing = ViewingRequest.objects.create(
+            client_name=followup.client_name,
+            client_phone=followup.client_phone,
+            car=followup.car,
+            notes=followup.notes
+        )
+        followup.status = 'contacted'
+        followup.save(update_fields=['status'])
+        return Response({'message': 'Viewing scheduled', 'viewing_id': viewing.id}, status=201)
+    
+    @action(detail=True, methods=['post'])
+    def close(self, request, pk=None):
+        followup = self.get_object()
+        followup.close()
+        return Response({'message': 'FollowUp closed and moved to history'}, status=200)
+    
+class OnDemandCarViewSet(viewsets.ModelViewSet):
+    queryset = OnDemandCar.objects.all().order_by('-created_at')
+    serializer_class = OnDemandCarSerializer
+    permission_classes = [permissions.IsAuthenticated]  # or AllowAny if public
+
+    search_fields = ['reference_number', 'make', 'model']
+    filterset_fields = ['is_sold', 'year', 'make']
+    ordering_fields = ['created_at', 'price']
+    ordering = ['-created_at']
+
+    @action(detail=False, methods=['get'])
+    def available(self, request):
+        """Get only available (unsold) On-Demand cars"""
+        cars = self.queryset.filter(is_sold=False)
+        serializer = self.get_serializer(cars, many=True)
+        return Response(serializer.data)
