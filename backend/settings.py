@@ -34,10 +34,13 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-_%5den6!#23&j0hagu8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'yes')
 
-CORS_ALLOWED_ORIGINS = os.getenv(
-    'CORS_ALLOWED_ORIGINS', 
-    'http://localhost:5173,http://localhost:5174,https://teal-pothos-40b439.netlify.app,https://dulcet-halva-0d2993.netlify.app/'
-).split(',')
+# settings.py
+
+CORS_ALLOWED_ORIGINS = [
+    "https://*.netlify.app",
+    "http://localhost:5173",  # For local dev
+    "http://localhost:5174",  # Optional
+]
 
 
 
@@ -181,7 +184,9 @@ CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,
 ALLOWED_HOSTS = ["*"]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://*.up.railway.app",
+    "https://*.up.railway.app",  # Your backend on Railway
+    "https://*.netlify.app",      # All Netlify frontends
 ]
+
 
 print("DEBUG MODE:", DEBUG)
