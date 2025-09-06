@@ -36,7 +36,7 @@ DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'yes')
 
 CORS_ALLOWED_ORIGINS = os.getenv(
     'CORS_ALLOWED_ORIGINS', 
-    'http://localhost:5173,http://localhost:5174,https://teal-pothos-40b439.netlify.app'
+    'http://localhost:5173,http://localhost:5174,https://teal-pothos-40b439.netlify.app,https://dulcet-halva-0d2993.netlify.app/'
 ).split(',')
 
 
