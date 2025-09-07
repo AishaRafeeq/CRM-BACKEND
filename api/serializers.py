@@ -337,9 +337,11 @@ class OnDemandCarSerializer(serializers.ModelSerializer):
         model = OnDemandCar
         fields = [
             'id', 'reference_number', 'make', 'model', 'year', 'price',
-            'description', 'image', 'is_sold', 'created_at', 'updated_at'
+            'description', 'image', 'is_sold', 'created_at', 'updated_at',
+            'broker_name', 'owner_name', 'owner_contact'  # add these
         ]
         read_only_fields = ['reference_number', 'created_at', 'updated_at']
+
 class OnDemandViewSerializer(serializers.ModelSerializer):
     class Meta:
         model = OnDemandView
