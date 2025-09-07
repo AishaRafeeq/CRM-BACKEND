@@ -557,9 +557,27 @@ class OnDemandCarViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(cars, many=True)
         return Response(serializer.data)
     
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework import status
+
 class OnDemandViewViewSet(viewsets.ModelViewSet):
     queryset = OnDemandView.objects.all().order_by("-created_at")
     serializer_class = OnDemandViewSerializer
+
+    @action(detail=True, methods=['post'])
+    def mark_interested(self, request, pk=None):
+        view = self.get_object()
+        view.status = 'interested'
+        view.save()
+        return Response({'status': 'interested'}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def mark_not_interested(self, request, pk=None):
+        view = self.get_object()
+        view.status = 'not_interested'
+        view.save()
+        return Response({'status': 'not_interested'}, status=status.HTTP_200_OK)
 
 
 class OnDemandLeadViewSet(viewsets.ModelViewSet):
