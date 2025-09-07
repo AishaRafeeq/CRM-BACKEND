@@ -1,4 +1,3 @@
-# Use slim Python image
 FROM python:3.12-slim
 
 # ---------------------------
@@ -25,11 +24,7 @@ WORKDIR /app
 # Copy requirements and install
 # ---------------------------
 COPY requirements.txt .
-
-# Upgrade pip
 RUN pip install --upgrade pip
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ---------------------------
@@ -38,17 +33,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # ---------------------------
-# Expose port for Gunicorn
-# ---------------------------
-EXPOSE 8000
-
-# ---------------------------
 # Set environment variables
 # ---------------------------
 ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE=backend.settings
 
 # ---------------------------
-# Run Gunicorn
+# Run Gunicorn on Railway-assigned PORT
 # ---------------------------
-CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
+ENV PORT 8080  # Railway will override this automatically
+CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:$PORT", "--workers", "3"]
