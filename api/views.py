@@ -561,6 +561,13 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
 
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.utils import timezone
+from .models import OnDemandView, OnDemandHistory, OnDemandLead
+from .serializers import OnDemandViewSerializer
+
 class OnDemandViewViewSet(viewsets.ModelViewSet):
     queryset = OnDemandView.objects.all().order_by("-created_at")
     serializer_class = OnDemandViewSerializer
@@ -589,6 +596,14 @@ class OnDemandViewViewSet(viewsets.ModelViewSet):
         return Response({'status': 'moved to history'}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])
+    def mark_pending(self, request, pk=None):
+        """Revert view to pending"""
+        view = self.get_object()
+        view.status = 'pending'
+        view.save(update_fields=['status', 'updated_at'])
+        return Response({'status': view.status}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
     def convert_to_lead(self, request, pk=None):
         """Convert interested view to a positive lead"""
         view = self.get_object()
@@ -613,7 +628,6 @@ class OnDemandViewViewSet(viewsets.ModelViewSet):
         interested_views = self.queryset.filter(status='interested')
         serializer = self.get_serializer(interested_views, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
 
 class OnDemandLeadViewSet(viewsets.ModelViewSet):
     queryset = OnDemandLead.objects.all().order_by("-created_at")
