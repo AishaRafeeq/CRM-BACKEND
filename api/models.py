@@ -317,6 +317,7 @@ class OnDemandView(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     notes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 class OnDemandLead(models.Model):
     STATUS_CHOICES = [('positive','Positive'),('sold','Sold'),('lost','Lost')]
