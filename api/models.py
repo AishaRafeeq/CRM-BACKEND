@@ -302,3 +302,37 @@ class OnDemandCar(models.Model):
 
     def __str__(self):
         return f"On-Demand: {self.make} {self.model} ({self.reference_number})"
+
+
+class OnDemandView(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('interested', 'Interested'),
+        ('not_interested', 'Not Interested'),
+    ]
+    car = models.ForeignKey(OnDemandCar, on_delete=models.CASCADE, related_name='views')
+    client_name = models.CharField(max_length=100)
+    client_contact = models.CharField(max_length=50, blank=True, null=True)
+    scheduled_at = models.DateTimeField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class OnDemandLead(models.Model):
+    STATUS_CHOICES = [('positive','Positive'),('sold','Sold'),('lost','Lost')]
+    view = models.OneToOneField(OnDemandView, on_delete=models.CASCADE, related_name='lead')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='positive')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class OnDemandSale(models.Model):
+    lead = models.OneToOneField(OnDemandLead, on_delete=models.CASCADE, related_name='sale')
+    final_price = models.DecimalField(max_digits=10, decimal_places=2)
+    company_commission = models.DecimalField(max_digits=10, decimal_places=2)
+    broker_commission = models.DecimalField(max_digits=10, decimal_places=2)
+    sold_at = models.DateTimeField(auto_now_add=True)
+
+class OnDemandHistory(models.Model):
+    car = models.ForeignKey(OnDemandCar, on_delete=models.CASCADE)
+    client_name = models.CharField(max_length=100)
+    reason = models.TextField(blank=True, null=True)
+    moved_at = models.DateTimeField(auto_now_add=True)

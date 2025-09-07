@@ -1,12 +1,12 @@
 from .models import (
     Broker, Car, ClientRequest, Agreement,
-    ProcessedSale, SoldCar, TransactionHistory,SidebarSection,SidebarItem,ViewingRequest,FollowUp,OnDemandCar
+    ProcessedSale, SoldCar, TransactionHistory,SidebarSection,SidebarItem,ViewingRequest,FollowUp,OnDemandCar,OnDemandView,OnDemandLead,OnDemandSale,OnDemandHistory
 )
 from .serializers import (
     BrokerSerializer, CarSerializer, ClientRequestSerializer,
     AgreementSerializer, ProcessedSaleSerializer,
     SoldCarSerializer, TransactionHistorySerializer, SidebarSectionSerializer,
-    ViewingRequestSerializer, ViewingRequestDetailSerializer, ViewingRequestSummarySerializer,FollowUpSerializer,OnDemandCarSerializer
+    ViewingRequestSerializer, ViewingRequestDetailSerializer, ViewingRequestSummarySerializer,FollowUpSerializer,OnDemandCarSerializer,OnDemandViewSerializer,OnDemandLeadSerializer,OnDemandSaleSerializer,OnDemandHistorySerializer
 )
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
@@ -556,3 +556,45 @@ class OnDemandCarViewSet(viewsets.ModelViewSet):
         cars = self.queryset.filter(is_sold=False)
         serializer = self.get_serializer(cars, many=True)
         return Response(serializer.data)
+    
+class OnDemandViewViewSet(viewsets.ModelViewSet):
+    queryset = OnDemandView.objects.all().order_by("-created_at")
+    serializer_class = OnDemandViewSerializer
+
+
+class OnDemandLeadViewSet(viewsets.ModelViewSet):
+    queryset = OnDemandLead.objects.all().order_by("-created_at")
+    serializer_class = OnDemandLeadSerializer
+
+    def perform_create(self, serializer):
+        # Automatically update view status → "interested" → "positive lead"
+        lead = serializer.save()
+        lead.view.status = "interested"
+        lead.view.save()
+
+
+class OnDemandSaleViewSet(viewsets.ModelViewSet):
+    queryset = OnDemandSale.objects.all().order_by("-sold_at")
+    serializer_class = OnDemandSaleSerializer
+
+    def perform_create(self, serializer):
+        sale = serializer.save()
+        # Update lead + car when sold
+        lead = sale.lead
+        lead.status = "sold"
+        lead.save()
+
+        car = lead.view.car
+        car.is_sold = True
+        car.save()
+
+
+class OnDemandHistoryViewSet(viewsets.ModelViewSet):
+    queryset = OnDemandHistory.objects.all().order_by("-moved_at")
+    serializer_class = OnDemandHistorySerializer
+
+    def create(self, request, *args, **kwargs):
+        """
+        Add to history manually or when lead/view marked lost/not interested
+        """
+        return super().create(request, *args, **kwargs)
