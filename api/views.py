@@ -567,17 +567,52 @@ class OnDemandViewViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def mark_interested(self, request, pk=None):
+        """Mark view as interested (green)"""
         view = self.get_object()
         view.status = 'interested'
-        view.save()
-        return Response({'status': 'interested'}, status=status.HTTP_200_OK)
+        view.save(update_fields=['status', 'updated_at'])
+        return Response({'status': view.status}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])
     def mark_not_interested(self, request, pk=None):
+        """Move view to history if not interested"""
         view = self.get_object()
         view.status = 'not_interested'
-        view.save()
-        return Response({'status': 'not_interested'}, status=status.HTTP_200_OK)
+        view.save(update_fields=['status', 'updated_at'])
+
+        # Move to OnDemandHistory
+        OnDemandHistory.objects.create(
+            view=view,
+            moved_at=timezone.now(),
+            reason='Not Interested'
+        )
+        return Response({'status': 'moved to history'}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def convert_to_lead(self, request, pk=None):
+        """Convert interested view to a positive lead"""
+        view = self.get_object()
+        if view.status != 'interested':
+            return Response({'error': 'Only interested views can be converted to leads'}, status=400)
+
+        # Create positive lead
+        lead = OnDemandLead.objects.create(
+            view=view,
+            status='positive_lead',
+        )
+
+        # Remove from interested pool
+        view.status = 'lead_converted'
+        view.save(update_fields=['status', 'updated_at'])
+
+        return Response({'status': 'converted to lead', 'lead_id': lead.id}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'])
+    def interested_clients(self, request):
+        """Return all views with status='interested' for dropdown"""
+        interested_views = self.queryset.filter(status='interested')
+        serializer = self.get_serializer(interested_views, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class OnDemandLeadViewSet(viewsets.ModelViewSet):
