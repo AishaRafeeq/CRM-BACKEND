@@ -1,8 +1,5 @@
 FROM python:3.12-slim
 
-# ---------------------------
-# Install system dependencies
-# ---------------------------
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
@@ -15,31 +12,16 @@ RUN apt-get update && \
         git curl \
     && rm -rf /var/lib/apt/lists/*
 
-# ---------------------------
-# Set work directory
-# ---------------------------
 WORKDIR /app
 
-# ---------------------------
-# Copy requirements and install
-# ---------------------------
 COPY requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# ---------------------------
-# Copy project files
-# ---------------------------
 COPY . .
 
-# ---------------------------
-# Set environment variables
-# ---------------------------
 ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE=backend.settings
 
-# ---------------------------
-# Run Gunicorn on Railway-assigned PORT
-# ---------------------------
-ENV PORT 8080  # Railway will override this automatically
-CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:$PORT", "--workers", "3"]
+# Use shell form so $PORT is expanded
+CMD sh -c "gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT --workers 3"
