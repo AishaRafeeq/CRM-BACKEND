@@ -577,6 +577,32 @@ class PositiveLeadsViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         return OnDemandEnquiry.objects.filter(status='interested').order_by('-created_at')
 
+    @action(detail=True, methods=['post'])
+    def schedule_viewing(self, request, pk=None):
+        """
+        Schedule a viewing for an interested enquiry.
+        """
+        enquiry = self.get_object()
+        scheduled_datetime = request.data.get('scheduled_datetime')
+        notes = request.data.get('notes', '')
+
+        if not scheduled_datetime:
+            return Response({'error': 'scheduled_datetime is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create a new OnDemandView (or your viewing model)
+        view = OnDemandView.objects.create(
+            car=enquiry.car,
+            client_name=enquiry.client_name,
+            scheduled_datetime=scheduled_datetime,
+            notes=notes,
+            status='scheduled'
+        )
+        return Response({
+            'message': 'Viewing scheduled',
+            'viewing_id': view.id,
+            'scheduled_datetime': view.scheduled_datetime
+        }, status=status.HTTP_201_CREATED)
+
 
 # Enquiry history
 class EnquiryHistoryViewSet(viewsets.ReadOnlyModelViewSet):
