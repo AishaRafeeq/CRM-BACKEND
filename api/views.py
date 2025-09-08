@@ -624,59 +624,77 @@ class OnDemandViewViewSet(viewsets.ModelViewSet):
         view = self.get_object()
         view.status = 'interested'
         view.save(update_fields=['status'])
-        return Response({'status':'interested'}, status=status.HTTP_200_OK)
+        # Create lead if not exists
+        if not hasattr(view, 'lead'):
+            OnDemandLead.objects.create(view=view, status='positive')
+        return Response({'status': 'interested'})
 
     @action(detail=True, methods=['post'])
     def mark_not_interested(self, request, pk=None):
         view = self.get_object()
         view.status = 'not_interested'
         view.save(update_fields=['status'])
-        # Move to history
-        OnDemandHistory.objects.create(car=view.car, client_name=view.client_name, reason='Not Interested', moved_at=timezone.now())
-        return Response({'status':'moved to history'}, status=status.HTTP_200_OK)
+        # Remove lead if exists (so it disappears from positive leads)
+        if hasattr(view, 'lead'):
+            view.lead.delete()
+        OnDemandHistory.objects.create(car=view.car, client_name=view.client_name, reason='Not Interested')
+        return Response({'status': 'not_interested'})
 
-    @action(detail=True, methods=['post'])
-    def convert_to_lead(self, request, pk=None):
-        view = self.get_object()
-        if view.status != 'interested':
-            return Response({'error':'Only interested views can be converted to leads'}, status=400)
-        lead = OnDemandLead.objects.create(view=view, status='positive')
-        view.status = 'lead_converted'
-        view.save(update_fields=['status'])
-        return Response({'status':'converted to lead','lead_id':lead.id}, status=status.HTTP_200_OK)
-
-
-# ---- Lead ----
 class OnDemandLeadViewSet(viewsets.ModelViewSet):
     queryset = OnDemandLead.objects.all().order_by('-created_at')
     serializer_class = OnDemandLeadSerializer
     permission_classes = [IsAuthenticated]
 
-    def perform_create(self, serializer):
-        lead = serializer.save()
-        lead.view.status = 'interested'
-        lead.view.save()
+    @action(detail=True, methods=['post'])
+    def mark_sold(self, request, pk=None):
+        lead = self.get_object()
+        lead.status = 'sold'
+        lead.save(update_fields=['status'])
+        sale = OnDemandSale.objects.create(
+            lead=lead,
+            final_price=request.data.get('final_price'),
+            company_commission=request.data.get('company_commission')
+        )
+        return Response({'status': 'sold', 'sale_id': sale.id})
 
+    @action(detail=True, methods=['post'])
+    def mark_lost(self, request, pk=None):
+        lead = self.get_object()
+        lead.status = 'lost'
+        lead.save(update_fields=['status'])
+        OnDemandHistory.objects.create(car=lead.view.car, client_name=lead.view.client_name, reason='Lost')
+        return Response({'status': 'lost'})
 
-# ---- Sale ----
 class OnDemandSaleViewSet(viewsets.ModelViewSet):
     queryset = OnDemandSale.objects.all().order_by('-sold_at')
     serializer_class = OnDemandSaleSerializer
     permission_classes = [IsAuthenticated]
 
-    def perform_create(self, serializer):
-        sale = serializer.save()
-        # update lead & car
-        lead = sale.lead
-        lead.status = 'sold'
-        lead.save()
-        car = lead.view.car
-        car.is_sold = True
-        car.save()
-
-
-# ---- History ----
 class OnDemandHistoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = OnDemandHistory.objects.all().order_by('-moved_at')
     serializer_class = OnDemandHistorySerializer
     permission_classes = [IsAuthenticated]
+
+class OnDemandAnalyticsView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        from django.db.models.functions import TruncMonth, TruncWeek, TruncYear
+        from django.db.models import Sum, Count
+
+        monthly = OnDemandSale.objects.annotate(month=TruncMonth('sold_at')).values('month').annotate(
+            total_commission=Sum('company_commission'),
+            sales_count=Count('id')
+        ).order_by('month')
+        weekly = OnDemandSale.objects.annotate(week=TruncWeek('sold_at')).values('week').annotate(
+            total_commission=Sum('company_commission'),
+            sales_count=Count('id')
+        ).order_by('week')
+        yearly = OnDemandSale.objects.annotate(year=TruncYear('sold_at')).values('year').annotate(
+            total_commission=Sum('company_commission'),
+            sales_count=Count('id')
+        ).order_by('year')
+        return Response({
+            'monthly': list(monthly),
+            'weekly': list(weekly),
+            'yearly': list(yearly),
+        })
