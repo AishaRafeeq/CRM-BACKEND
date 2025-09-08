@@ -342,6 +342,8 @@ class OnDemandCarSerializer(serializers.ModelSerializer):
 
 
 class OnDemandEnquirySerializer(serializers.ModelSerializer):
+    car = serializers.PrimaryKeyRelatedField(queryset=OnDemandCar.objects.all())
+
     class Meta:
         model = OnDemandEnquiry
         fields = "__all__"
