@@ -268,32 +268,26 @@ class FollowUp(models.Model):
 def on_demand_car_image_path(instance, filename):
     return f'on_demand_cars/{instance.reference_number}/{filename}'
 
-# 2️⃣ Define the reference number generator
 def generate_on_demand_ref(make='CAR'):
-    """
-    Generate 8-character reference: first 3 letters of make + 5 random digits
-    """
     prefix = make[:3].upper() if make else 'CAR'
     digits = ''.join(random.choices(string.digits, k=5))
     return f"{prefix}{digits}"
 
-# 3️⃣ Then define your model
 class OnDemandCar(models.Model):
     reference_number = models.CharField(max_length=8, unique=True, editable=False)
     make = models.CharField(max_length=100)
     model = models.CharField(max_length=100)
     year = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    company_commission = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    broker_name = models.CharField(max_length=100, default="")
+    broker_contact = models.CharField(max_length=20, default="")
+
     description = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to=on_demand_car_image_path, blank=True, null=True)
     is_sold = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    # ✅ Free-text fields
-    broker_name = models.CharField(max_length=100, blank=True, null=True)
-    owner_name = models.CharField(max_length=100, blank=True, null=True)
-    owner_contact = models.CharField(max_length=20, blank=True, null=True)
 
     def save(self, *args, **kwargs):
         if not self.reference_number:
@@ -301,7 +295,36 @@ class OnDemandCar(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"On-Demand: {self.make} {self.model} ({self.reference_number})"
+        return f"{self.make} {self.model} ({self.reference_number})"
+
+
+class OnDemandEnquiry(models.Model):
+    STATUS_CHOICES = [
+        ("interested", "Interested"),
+        ("not_interested", "Not Interested"),
+        ("contacted", "Contacted"),
+        ("closed", "Closed"),
+    ]
+    SOURCE_CHOICES = [
+        ("whatsapp", "WhatsApp"),
+        ("call", "Call"),
+        ("instagram", "Instagram"),
+        ("facebook", "Facebook"),
+        ("other", "Other"),
+    ]
+
+    car = models.ForeignKey(OnDemandCar, on_delete=models.CASCADE, related_name="enquiries")
+    client_name = models.CharField(max_length=100)
+    client_contact = models.CharField(max_length=50, blank=True, null=True)
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default="other")
+    notes = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="contacted")
+    negotiated_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Enquiry - {self.client_name} ({self.car.reference_number})"
 
 
 class OnDemandView(models.Model):
@@ -310,27 +333,32 @@ class OnDemandView(models.Model):
         ('interested', 'Interested'),
         ('not_interested', 'Not Interested'),
     ]
+
     car = models.ForeignKey(OnDemandCar, on_delete=models.CASCADE, related_name='views')
     client_name = models.CharField(max_length=100)
     client_contact = models.CharField(max_length=50, blank=True, null=True)
     scheduled_at = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     notes = models.TextField(blank=True, null=True)
+    negotiated_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+
 class OnDemandLead(models.Model):
-    STATUS_CHOICES = [('positive','Positive'),('sold','Sold'),('lost','Lost')]
+    STATUS_CHOICES = [('positive', 'Positive'), ('sold', 'Sold'), ('lost', 'Lost')]
+
     view = models.OneToOneField(OnDemandView, on_delete=models.CASCADE, related_name='lead')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='positive')
     created_at = models.DateTimeField(auto_now_add=True)
+
 
 class OnDemandSale(models.Model):
     lead = models.OneToOneField(OnDemandLead, on_delete=models.CASCADE, related_name='sale')
     final_price = models.DecimalField(max_digits=10, decimal_places=2)
     company_commission = models.DecimalField(max_digits=10, decimal_places=2)
-    broker_commission = models.DecimalField(max_digits=10, decimal_places=2)
     sold_at = models.DateTimeField(auto_now_add=True)
+
 
 class OnDemandHistory(models.Model):
     car = models.ForeignKey(OnDemandCar, on_delete=models.CASCADE)

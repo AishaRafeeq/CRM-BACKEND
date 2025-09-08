@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Broker, Car, ClientRequest, Agreement, ProcessedSale, SoldCar, 
-    TransactionHistory, SidebarSection, SidebarItem, ViewingRequest,FollowUp,OnDemandCar,OnDemandView,OnDemandLead,OnDemandSale,OnDemandHistory
+    TransactionHistory, SidebarSection, SidebarItem, ViewingRequest,FollowUp,OnDemandCar,OnDemandView,OnDemandLead,OnDemandSale,OnDemandHistory,OnDemandEnquiry
 )
 from django.utils import timezone
 from datetime import datetime
@@ -331,16 +331,22 @@ class FollowUpSerializer(serializers.ModelSerializer):
             'is_sold': car.is_sold,
         }
 class OnDemandCarSerializer(serializers.ModelSerializer):
-    image = serializers.ImageField(use_url=True)
-
     class Meta:
         model = OnDemandCar
         fields = [
             'id', 'reference_number', 'make', 'model', 'year', 'price',
-            'description', 'image', 'is_sold', 'created_at', 'updated_at',
-            'broker_name', 'owner_name', 'owner_contact'  # add these
+            'company_commission', 'broker_name', 'broker_contact', 'description', 'image',
+            'is_sold', 'created_at', 'updated_at'
         ]
         read_only_fields = ['reference_number', 'created_at', 'updated_at']
+
+
+class OnDemandEnquirySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OnDemandEnquiry
+        fields = "__all__"
+        read_only_fields = ['created_at', 'updated_at']
+
 
 class OnDemandViewSerializer(serializers.ModelSerializer):
     class Meta:
@@ -350,11 +356,7 @@ class OnDemandViewSerializer(serializers.ModelSerializer):
 
 class OnDemandLeadSerializer(serializers.ModelSerializer):
     view = OnDemandViewSerializer(read_only=True)
-    view_id = serializers.PrimaryKeyRelatedField(
-        queryset=OnDemandView.objects.filter(status="interested"),
-        source="view",
-        write_only=True
-    )
+    view_id = serializers.PrimaryKeyRelatedField(queryset=OnDemandView.objects.filter(status='interested'), source='view', write_only=True)
 
     class Meta:
         model = OnDemandLead
@@ -363,19 +365,11 @@ class OnDemandLeadSerializer(serializers.ModelSerializer):
 
 class OnDemandSaleSerializer(serializers.ModelSerializer):
     lead = OnDemandLeadSerializer(read_only=True)
-    lead_id = serializers.PrimaryKeyRelatedField(
-        queryset=OnDemandLead.objects.filter(status="positive"),
-        source="lead",
-        write_only=True
-    )
+    lead_id = serializers.PrimaryKeyRelatedField(queryset=OnDemandLead.objects.filter(status='positive'), source='lead', write_only=True)
 
     class Meta:
         model = OnDemandSale
-        fields = [
-            "id", "lead", "lead_id",
-            "final_price", "company_commission", "broker_commission",
-            "sold_at"
-        ]
+        fields = ["id", "lead", "lead_id", "final_price", "company_commission", "sold_at"]
 
 
 class OnDemandHistorySerializer(serializers.ModelSerializer):

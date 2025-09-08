@@ -1,12 +1,12 @@
 from .models import (
     Broker, Car, ClientRequest, Agreement,
-    ProcessedSale, SoldCar, TransactionHistory,SidebarSection,SidebarItem,ViewingRequest,FollowUp,OnDemandCar,OnDemandView,OnDemandLead,OnDemandSale,OnDemandHistory
+    ProcessedSale, SoldCar, TransactionHistory,SidebarSection,SidebarItem,ViewingRequest,FollowUp,OnDemandCar,OnDemandView,OnDemandLead,OnDemandSale,OnDemandHistory,OnDemandEnquiry
 )
 from .serializers import (
     BrokerSerializer, CarSerializer, ClientRequestSerializer,
     AgreementSerializer, ProcessedSaleSerializer,
     SoldCarSerializer, TransactionHistorySerializer, SidebarSectionSerializer,
-    ViewingRequestSerializer, ViewingRequestDetailSerializer, ViewingRequestSummarySerializer,FollowUpSerializer,OnDemandCarSerializer,OnDemandViewSerializer,OnDemandLeadSerializer,OnDemandSaleSerializer,OnDemandHistorySerializer
+    ViewingRequestSerializer, ViewingRequestDetailSerializer, ViewingRequestSummarySerializer,FollowUpSerializer,OnDemandCarSerializer,OnDemandViewSerializer,OnDemandLeadSerializer,OnDemandSaleSerializer,OnDemandHistorySerializer,OnDemandEnquirySerializer
 )
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
@@ -14,6 +14,9 @@ from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import filters
+
 
 
 
@@ -543,125 +546,103 @@ class FollowUpViewSet(viewsets.ModelViewSet):
 class OnDemandCarViewSet(viewsets.ModelViewSet):
     queryset = OnDemandCar.objects.all().order_by('-created_at')
     serializer_class = OnDemandCarSerializer
-    permission_classes = [permissions.IsAuthenticated]  # or AllowAny if public
-
-    search_fields = ['reference_number', 'make', 'model']
-    filterset_fields = ['is_sold', 'year', 'make']
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['reference_number', 'make', 'model', 'broker_name']
     ordering_fields = ['created_at', 'price']
     ordering = ['-created_at']
 
-    @action(detail=False, methods=['get'])
-    def available(self, request):
-        """Get only available (unsold) On-Demand cars"""
-        cars = self.queryset.filter(is_sold=False)
-        serializer = self.get_serializer(cars, many=True)
-        return Response(serializer.data)
-    
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework import status
+# ---- Enquiry ----
+class OnDemandEnquiryViewSet(viewsets.ModelViewSet):
+    queryset = OnDemandEnquiry.objects.all().order_by('-created_at')
+    serializer_class = OnDemandEnquirySerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['client_name', 'client_contact', 'status', 'source']
+    ordering_fields = ['created_at', 'updated_at', 'status']
 
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from django.utils import timezone
-from .models import OnDemandView, OnDemandHistory, OnDemandLead
-from .serializers import OnDemandViewSerializer
+# Positive leads from enquiries
+class PositiveLeadsViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = OnDemandEnquirySerializer
+    permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        return OnDemandEnquiry.objects.filter(status='interested').order_by('-created_at')
+
+
+# Enquiry history
+class EnquiryHistoryViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = OnDemandEnquirySerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return OnDemandEnquiry.objects.filter(status='not_interested').order_by('-updated_at')
+
+
+# ---- Views ----
 class OnDemandViewViewSet(viewsets.ModelViewSet):
-    queryset = OnDemandView.objects.all().order_by("-created_at")
+    queryset = OnDemandView.objects.all().order_by('-created_at')
     serializer_class = OnDemandViewSerializer
+    permission_classes = [IsAuthenticated]
 
     @action(detail=True, methods=['post'])
     def mark_interested(self, request, pk=None):
-        """Mark view as interested (green)"""
         view = self.get_object()
         view.status = 'interested'
-        view.save(update_fields=['status', 'updated_at'])
-        return Response({'status': view.status}, status=status.HTTP_200_OK)
+        view.save(update_fields=['status'])
+        return Response({'status':'interested'}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])
     def mark_not_interested(self, request, pk=None):
-        """Move view to history if not interested"""
         view = self.get_object()
         view.status = 'not_interested'
-        view.save(update_fields=['status', 'updated_at'])
-
-        # Move to OnDemandHistory
-        OnDemandHistory.objects.create(
-            view=view,
-            moved_at=timezone.now(),
-            reason='Not Interested'
-        )
-        return Response({'status': 'moved to history'}, status=status.HTTP_200_OK)
-
-    @action(detail=True, methods=['post'])
-    def mark_pending(self, request, pk=None):
-        """Revert view to pending"""
-        view = self.get_object()
-        view.status = 'pending'
-        view.save(update_fields=['status', 'updated_at'])
-        return Response({'status': view.status}, status=status.HTTP_200_OK)
+        view.save(update_fields=['status'])
+        # Move to history
+        OnDemandHistory.objects.create(car=view.car, client_name=view.client_name, reason='Not Interested', moved_at=timezone.now())
+        return Response({'status':'moved to history'}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])
     def convert_to_lead(self, request, pk=None):
-        """Convert interested view to a positive lead"""
         view = self.get_object()
         if view.status != 'interested':
-            return Response({'error': 'Only interested views can be converted to leads'}, status=400)
-
-        # Create positive lead
-        lead = OnDemandLead.objects.create(
-            view=view,
-            status='positive_lead',
-        )
-
-        # Remove from interested pool
+            return Response({'error':'Only interested views can be converted to leads'}, status=400)
+        lead = OnDemandLead.objects.create(view=view, status='positive')
         view.status = 'lead_converted'
-        view.save(update_fields=['status', 'updated_at'])
+        view.save(update_fields=['status'])
+        return Response({'status':'converted to lead','lead_id':lead.id}, status=status.HTTP_200_OK)
 
-        return Response({'status': 'converted to lead', 'lead_id': lead.id}, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=['get'])
-    def interested_clients(self, request):
-        """Return all views with status='interested' for dropdown"""
-        interested_views = self.queryset.filter(status='interested')
-        serializer = self.get_serializer(interested_views, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
+# ---- Lead ----
 class OnDemandLeadViewSet(viewsets.ModelViewSet):
-    queryset = OnDemandLead.objects.all().order_by("-created_at")
+    queryset = OnDemandLead.objects.all().order_by('-created_at')
     serializer_class = OnDemandLeadSerializer
+    permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
-        # Automatically update view status → "interested" → "positive lead"
         lead = serializer.save()
-        lead.view.status = "interested"
+        lead.view.status = 'interested'
         lead.view.save()
 
 
+# ---- Sale ----
 class OnDemandSaleViewSet(viewsets.ModelViewSet):
-    queryset = OnDemandSale.objects.all().order_by("-sold_at")
+    queryset = OnDemandSale.objects.all().order_by('-sold_at')
     serializer_class = OnDemandSaleSerializer
+    permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
         sale = serializer.save()
-        # Update lead + car when sold
+        # update lead & car
         lead = sale.lead
-        lead.status = "sold"
+        lead.status = 'sold'
         lead.save()
-
         car = lead.view.car
         car.is_sold = True
         car.save()
 
 
-class OnDemandHistoryViewSet(viewsets.ModelViewSet):
-    queryset = OnDemandHistory.objects.all().order_by("-moved_at")
+# ---- History ----
+class OnDemandHistoryViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = OnDemandHistory.objects.all().order_by('-moved_at')
     serializer_class = OnDemandHistorySerializer
-
-    def create(self, request, *args, **kwargs):
-        """
-        Add to history manually or when lead/view marked lost/not interested
-        """
-        return super().create(request, *args, **kwargs)
+    permission_classes = [IsAuthenticated]
