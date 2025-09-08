@@ -4,7 +4,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .views import (
     BrokerViewSet, CarViewSet, ClientRequestViewSet, AgreementViewSet,
     ProcessedSaleViewSet, SoldCarViewSet, TransactionHistoryViewSet,
-    SidebarSectionViewSet, ViewingRequestViewSet, SalesAnalyticsView,FollowUpViewSet,OnDemandCarViewSet,OnDemandViewViewSet,OnDemandLeadViewSet,OnDemandSaleViewSet,OnDemandHistoryViewSet,OnDemandEnquiryViewSet,PositiveLeadsViewSet,EnquiryHistoryViewSet
+    SidebarSectionViewSet, ViewingRequestViewSet, SalesAnalyticsView,FollowUpViewSet,OnDemandCarViewSet,OnDemandViewViewSet,OnDemandLeadViewSet,OnDemandSaleViewSet,OnDemandHistoryViewSet,OnDemandEnquiryViewSet,PositiveLeadsViewSet,EnquiryHistoryViewSet,OnDemandAnalyticsView
 )
 
 router = DefaultRouter()
@@ -32,5 +32,6 @@ urlpatterns = [
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('analytics/', SalesAnalyticsView.as_view(), name='sales-analytics'),
+    path('on-demand-analytics/', OnDemandAnalyticsView.as_view(), name='on-demand-analytics'),
     path('', include(router.urls)),
 ]
