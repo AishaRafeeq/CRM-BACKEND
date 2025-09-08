@@ -8,14 +8,13 @@ from .serializers import (
     SoldCarSerializer, TransactionHistorySerializer, SidebarSectionSerializer,
     ViewingRequestSerializer, ViewingRequestDetailSerializer, ViewingRequestSummarySerializer,FollowUpSerializer,OnDemandCarSerializer,OnDemandViewSerializer,OnDemandLeadSerializer,OnDemandSaleSerializer,OnDemandHistorySerializer,OnDemandEnquirySerializer
 )
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, filters
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticated
-from rest_framework import filters
 
 
 
@@ -560,6 +559,15 @@ class OnDemandEnquiryViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['client_name', 'client_contact', 'status', 'source']
     ordering_fields = ['created_at', 'updated_at', 'status']
+
+    @action(detail=False, methods=['get'], url_path='available-cars')
+    def available_cars(self, request):
+        """
+        List all available (unsold) OnDemandCars for selection in new enquiry.
+        """
+        cars = OnDemandCar.objects.filter(is_sold=False)
+        serializer = OnDemandCarSerializer(cars, many=True)
+        return Response(serializer.data)
 
 # Positive leads from enquiries
 class PositiveLeadsViewSet(viewsets.ReadOnlyModelViewSet):
