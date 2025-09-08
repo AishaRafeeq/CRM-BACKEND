@@ -359,8 +359,7 @@ class OnDemandViewSerializer(serializers.ModelSerializer):
 
 
 class OnDemandLeadSerializer(serializers.ModelSerializer):
-    car = serializers.PrimaryKeyRelatedField(queryset=OnDemandCar.objects.all())
-
+   
     view = OnDemandViewSerializer(read_only=True)
     view_id = serializers.PrimaryKeyRelatedField(queryset=OnDemandView.objects.filter(status='interested'), source='view', write_only=True)
 
