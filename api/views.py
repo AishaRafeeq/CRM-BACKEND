@@ -583,24 +583,24 @@ class PositiveLeadsViewSet(viewsets.ReadOnlyModelViewSet):
         Schedule a viewing for an interested enquiry.
         """
         enquiry = self.get_object()
-        scheduled_datetime = request.data.get('scheduled_datetime')
+        scheduled_at = request.data.get('scheduled_at')
         notes = request.data.get('notes', '')
 
-        if not scheduled_datetime:
-            return Response({'error': 'scheduled_datetime is required'}, status=status.HTTP_400_BAD_REQUEST)
+        if not scheduled_at:
+            return Response({'error': 'scheduled_at is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Create a new OnDemandView (or your viewing model)
         view = OnDemandView.objects.create(
             car=enquiry.car,
             client_name=enquiry.client_name,
-            scheduled_datetime=scheduled_datetime,
+            client_contact=enquiry.client_contact,
+            scheduled_at=scheduled_at,
             notes=notes,
-            status='scheduled'
+            status='pending'
         )
         return Response({
             'message': 'Viewing scheduled',
             'viewing_id': view.id,
-            'scheduled_datetime': view.scheduled_datetime
+            'scheduled_at': view.scheduled_at
         }, status=status.HTTP_201_CREATED)
 
 
