@@ -154,5 +154,8 @@ LOGGING = {
     },
 }
 
+DATABASES["default"]["CONN_MAX_AGE"] = 60  # keep connections for 60s
+
+
 # Print debug status
 print("DEBUG MODE:", DEBUG)
