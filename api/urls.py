@@ -4,7 +4,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .views import (
     BrokerViewSet, CarViewSet, ClientRequestViewSet, AgreementViewSet,
     ProcessedSaleViewSet, SoldCarViewSet, TransactionHistoryViewSet,
-    SidebarSectionViewSet, ViewingRequestViewSet, SalesAnalyticsView,FollowUpViewSet,OnDemandCarViewSet,OnDemandViewViewSet,OnDemandLeadViewSet,OnDemandSaleViewSet,OnDemandHistoryViewSet,OnDemandEnquiryViewSet,PositiveLeadsViewSet,EnquiryHistoryViewSet,OnDemandAnalyticsView
+    SidebarSectionViewSet, ViewingRequestViewSet, SalesAnalyticsView,FollowUpViewSet,OnDemandCarViewSet,OnDemandViewViewSet,OnDemandLeadViewSet,OnDemandSaleViewSet,OnDemandHistoryViewSet,PositiveLeadsViewSet,EnquiryHistoryViewSet,OnDemandAnalyticsView
 )
 
 router = DefaultRouter()
@@ -18,7 +18,7 @@ router.register(r'transactionhistory', TransactionHistoryViewSet)
 router.register(r'sidebarsections', SidebarSectionViewSet)
 router.register(r'viewings', ViewingRequestViewSet)
 router.register(r'followups', FollowUpViewSet)
-router.register(r"on-demand-enquiries", OnDemandEnquiryViewSet, basename="on-demand-enquiries")
+
 router.register(r"positive-leads", PositiveLeadsViewSet, basename="positive-leads")
 router.register(r"enquiry-history", EnquiryHistoryViewSet, basename="enquiry-history")
 router.register(r'on-demand-cars', OnDemandCarViewSet, basename='on-demand-cars')
