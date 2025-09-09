@@ -575,12 +575,14 @@ class PositiveLeadsViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        # Show only enquiries that are still interested (not moved to views yet)
         return OnDemandEnquiry.objects.filter(status='interested').order_by('-created_at')
 
     @action(detail=True, methods=['post'])
     def schedule_viewing(self, request, pk=None):
         """
         Schedule a viewing for an interested enquiry.
+        Move it from enquiries → views.
         """
         enquiry = self.get_object()
         scheduled_at = request.data.get('scheduled_at')
@@ -589,6 +591,7 @@ class PositiveLeadsViewSet(viewsets.ReadOnlyModelViewSet):
         if not scheduled_at:
             return Response({'error': 'scheduled_at is required'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Create a viewing record
         view = OnDemandView.objects.create(
             car=enquiry.car,
             client_name=enquiry.client_name,
@@ -597,12 +600,15 @@ class PositiveLeadsViewSet(viewsets.ReadOnlyModelViewSet):
             notes=notes,
             status='pending'
         )
+
+        # ❌ Remove enquiry (so it doesn’t appear again)
+        enquiry.delete()
+
         return Response({
             'message': 'Viewing scheduled',
             'viewing_id': view.id,
             'scheduled_at': view.scheduled_at
         }, status=status.HTTP_201_CREATED)
-
 
 # Enquiry history
 class EnquiryHistoryViewSet(viewsets.ReadOnlyModelViewSet):
