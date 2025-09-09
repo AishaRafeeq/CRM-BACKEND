@@ -133,5 +133,26 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': os.getenv('DJANGO_LOG_LEVEL', 'WARNING'),  # 👈 change DEBUG/INFO to WARNING
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': os.getenv('DJANGO_LOG_LEVEL', 'WARNING'),  # 👈 WARNING reduces spam
+            'propagate': True,
+        },
+    },
+}
+
 # Print debug status
 print("DEBUG MODE:", DEBUG)
