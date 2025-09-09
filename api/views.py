@@ -552,57 +552,70 @@ class OnDemandCarViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
 
 # ---- Enquiry ----
-class PositiveLeadsViewSet(viewsets.ReadOnlyModelViewSet):
+class OnDemandEnquiryViewSet(viewsets.ModelViewSet):
+    queryset = OnDemandEnquiry.objects.all().order_by('-created_at')
     serializer_class = OnDemandEnquirySerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['client_name', 'client_contact', 'status', 'source']
+    ordering_fields = ['created_at', 'updated_at', 'status']
 
-    def get_queryset(self):
-        # Show only enquiries that are still interested (not yet scheduled)
-        return OnDemandEnquiry.objects.filter(status='interested').order_by('-created_at')
+    @action(detail=False, methods=['get'], url_path='available-cars')
+    def available_cars(self, request):
+        """
+        List all available (unsold) OnDemandCars for selection in new enquiry.
+        """
+        cars = OnDemandCar.objects.filter(is_sold=False)
+        serializer = OnDemandCarSerializer(cars, many=True)
+        return Response(serializer.data)
+        
+class OnDemandLeadViewSet(viewsets.ModelViewSet):
+    queryset = OnDemandLead.objects.all().order_by('-created_at')
+    serializer_class = OnDemandLeadSerializer
+    permission_classes = [IsAuthenticated]
 
     @action(detail=True, methods=['post'])
-    def schedule_viewing(self, request, pk=None):
+    def mark_sold(self, request, pk=None):
         """
-        Schedule a viewing for an interested enquiry.
-        Move it from enquiries → views, and log to EnquiryHistory.
+        Mark a lead as sold, record sale details,
+        and move it to OnDemandSale.
         """
-        enquiry = self.get_object()
-        scheduled_at = request.data.get('scheduled_at')
-        notes = request.data.get('notes', '')
+        lead = self.get_object()
 
-        if not scheduled_at:
-            return Response({'error': 'scheduled_at is required'}, status=status.HTTP_400_BAD_REQUEST)
+        final_price = request.data.get('final_price')
+        commission = request.data.get('company_commission')
 
-        # 1️⃣ Create a viewing record
-        view = OnDemandView.objects.create(
-            car=enquiry.car,
-            client_name=enquiry.client_name,
-            client_contact=enquiry.client_contact,
-            scheduled_at=scheduled_at,
-            notes=notes,
-            status='pending'
+        if not final_price or not commission:
+            return Response(
+                {"error": "final_price and company_commission are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 1️⃣ Mark lead as sold
+        lead.status = 'sold'
+        lead.save(update_fields=['status'])
+
+        # 2️⃣ Create Sale Record
+        sale = OnDemandSale.objects.create(
+            lead=lead,
+            final_price=final_price,
+            company_commission=commission
         )
 
-        # 2️⃣ Log into history before deletion
-        EnquiryHistory.objects.create(
-            car=enquiry.car,
-            client_name=enquiry.client_name,
-            client_contact=enquiry.client_contact,
-            status="moved_to_view",
-            notes=f"Viewing scheduled at {scheduled_at}"
+        # 3️⃣ Log into History
+        OnDemandHistory.objects.create(
+            car=lead.view.car,
+            client_name=lead.view.client_name,
+            reason="Sold"
         )
-
-        # 3️⃣ Delete enquiry (so it's removed from list)
-        enquiry.delete()
 
         return Response({
-            'message': 'Viewing scheduled, enquiry archived in history and removed from enquiries',
-            'viewing_id': view.id,
-            'scheduled_at': view.scheduled_at
-        }, status=status.HTTP_201_CREATED)
-
-        
-
+            "message": "Lead marked as sold and moved to sales",
+            "sale_id": sale.id,
+            "final_price": sale.final_price,
+            "company_commission": sale.company_commission,
+            "sold_at": sale.sold_at
+        })
 # Positive leads from enquiries
 class PositiveLeadsViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = OnDemandEnquirySerializer
@@ -687,46 +700,24 @@ class OnDemandLeadViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def mark_sold(self, request, pk=None):
-        """
-        Mark a lead as sold, record sale details,
-        and move it to OnDemandSale.
-        """
         lead = self.get_object()
-
-        final_price = request.data.get('final_price')
-        commission = request.data.get('company_commission')
-
-        if not final_price or not commission:
-            return Response(
-                {"error": "final_price and company_commission are required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # 1️⃣ Mark lead as sold
         lead.status = 'sold'
         lead.save(update_fields=['status'])
-
-        # 2️⃣ Create Sale Record
         sale = OnDemandSale.objects.create(
             lead=lead,
-            final_price=final_price,
-            company_commission=commission
+            final_price=request.data.get('final_price'),
+            company_commission=request.data.get('company_commission')
         )
+        return Response({'status': 'sold', 'sale_id': sale.id})
 
-        # 3️⃣ Log into History
-        OnDemandHistory.objects.create(
-            car=lead.view.car,
-            client_name=lead.view.client_name,
-            reason="Sold"
-        )
+    @action(detail=True, methods=['post'])
+    def mark_lost(self, request, pk=None):
+        lead = self.get_object()
+        lead.status = 'lost'
+        lead.save(update_fields=['status'])
+        OnDemandHistory.objects.create(car=lead.view.car, client_name=lead.view.client_name, reason='Lost')
+        return Response({'status': 'lost'})
 
-        return Response({
-            "message": "Lead marked as sold and moved to sales",
-            "sale_id": sale.id,
-            "final_price": sale.final_price,
-            "company_commission": sale.company_commission,
-            "sold_at": sale.sold_at
-        })
 class OnDemandSaleViewSet(viewsets.ModelViewSet):
     queryset = OnDemandSale.objects.all().order_by('-sold_at')
     serializer_class = OnDemandSaleSerializer
