@@ -25,6 +25,7 @@ INSTALLED_NETLIFY_FRONTENDS = [
     "https://kaleidoscopic-bunny-b8322e.netlify.app",  # Add other Netlify URLs if needed
     "https://frabjous-seahorse-668c7b.netlify.app",
     "https://subtle-platypus-1d4fd8.netlify.app"
+    "https://car-selling-crm.netlify.app"
 ]
 
 CORS_ALLOWED_ORIGINS = [
