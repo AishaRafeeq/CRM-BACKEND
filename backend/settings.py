@@ -29,14 +29,19 @@ INSTALLED_NETLIFY_FRONTENDS = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
+    "https://crm-frontend-car.onrender.com",
+    "https://car-selling-crm.netlify.app",
+    "https://kaleidoscopic-bunny-b8322e.netlify.app",
     "http://localhost:5173",
     "http://localhost:5174",
-] + INSTALLED_NETLIFY_FRONTENDS
+]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://*.up.railway.app",  # Your Railway backend
-    "https://*.netlify.app",      # All Netlify frontends
+    "https://graceful-healing-productionsnew.up.railway.app",
+    "https://crm-frontend-car.onrender.com",
+    "https://*.netlify.app",
 ]
+
 
 # Application definition
 INSTALLED_APPS = [
