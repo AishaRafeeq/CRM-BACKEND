@@ -24,6 +24,7 @@ ALLOWED_HOSTS = ["*"]  # For production, replace with your domains
 INSTALLED_NETLIFY_FRONTENDS = [
     "https://kaleidoscopic-bunny-b8322e.netlify.app",  # Add other Netlify URLs if needed
     "https://crm-frontend-car.onrender.com",
+    
     "https://car-selling-crm.netlify.app",
 ]
 
