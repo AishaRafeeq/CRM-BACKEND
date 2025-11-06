@@ -1,42 +1,36 @@
-# ---- Base image ----
+# Use official Python image
 FROM python:3.12-slim
 
-# ---- System dependencies ----
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libjpeg62-turbo-dev \
-    zlib1g-dev \
-    libpng-dev \
-    libfreetype6-dev \
-    libwebp-dev \
-    tcl-dev tk-dev python3-tk \
-    git curl \
- && rm -rf /var/lib/apt/lists/*
+# Set environment
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-# ---- Set working directory ----
+# Install system dependencies for MySQL client
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    default-libmysqlclient-dev \
+    libssl-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set work directory
 WORKDIR /app
 
-# ---- Copy dependency files ----
+# Copy requirements
 COPY requirements.txt .
 
-# ---- Install Python dependencies ----
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# Upgrade pip and install Python dependencies
+RUN pip install --upgrade pip
+RUN pip install --no-cache-dir -r requirements.txt
 
-# ---- Copy project files ----
+# Copy project
 COPY . .
 
-# ---- Set environment variables ----
-ENV PYTHONUNBUFFERED=1
-ENV DJANGO_SETTINGS_MODULE=backend.settings
-ENV PORT=8000
+# Collect static files
+RUN python manage.py collectstatic --noinput
 
-# ---- Collect static files (optional but recommended) ----
-RUN python manage.py collectstatic --noinput || true
-
-# ---- Expose the port for Render ----
+# Expose port
 EXPOSE 8000
 
-# ---- Start Gunicorn ----
-# Use shell form so $PORT gets expanded correctly
-CMD sh -c "gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT --workers 3"
+# Run server
+CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:8000"]
