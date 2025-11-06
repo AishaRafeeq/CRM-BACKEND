@@ -95,11 +95,21 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 # Database
 DATABASES = {
-    "default": dj_database_url.config(
-        default=os.getenv("DATABASE_URL"),
-        conn_max_age=600,
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'db31631',  # Database name (usually same as login)
+        'USER': 'db31631',
+        'PASSWORD': 'hX+9=6JscC_8',
+        'HOST': 'db31631.public.databaseasp.net',  # Use hostname, not IP
+        'PORT': '3306',
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        },
+    }
 }
+
+
+
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
