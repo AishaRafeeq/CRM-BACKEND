@@ -36,6 +36,7 @@ CSRF_TRUSTED_ORIGINS = [
     "https://graceful-healing-productionsnew.up.railway.app",
     "https://crm-frontend-car.onrender.com",
     "https://*.netlify.app",
+    "https://crm-backend-1-ojtm.onrender.com",
 ]
 
 # --- Applications ---
